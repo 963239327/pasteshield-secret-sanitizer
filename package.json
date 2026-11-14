@@ -1,0 +1,42 @@
+{
+  "name": "pasteshield-secret-sanitizer",
+  "version": "1.0.0",
+  "description": "Reversible offline AI prompt & clipboard secret sanitizer for ChatGPT, Claude, Cursor & VS Code. Redacts API keys, JWTs, DB URIs, cloud credentials & internal IPs into deterministic <OPENAI_KEY_1> placeholders and restores AI code replies in 1 click.",
+  "main": "./sanitizer-core.js",
+  "bin": {
+    "pasteshield": "./bin/pasteshield-cli.js"
+  },
+  "scripts": {
+    "test": "node ./test/cli.test.js",
+    "demo": "node ./bin/pasteshield-cli.js demo"
+  },
+  "keywords": [
+    "prompt-sanitizer",
+    "secret-scanner",
+    "redact-api-keys",
+    "ai-security",
+    "chatgpt",
+    "claude",
+    "cursor",
+    "vscode-extension",
+    "clipboard-sanitizer",
+    "dlp",
+    "dotenv",
+    "jwt",
+    "redaction",
+    "privacy"
+  ],
+  "author": "CraftLeaf Studio <963239327@users.noreply.github.com>",
+  "license": "MIT",
+  "homepage": "https://963239327.github.io/craftleaf-studio/extensions/pasteshield/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/963239327/pasteshield-secret-sanitizer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/963239327/pasteshield-secret-sanitizer/issues"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
