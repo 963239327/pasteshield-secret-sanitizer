@@ -13,8 +13,8 @@ var childProcess = require('child_process');
 var PasteShieldCore = require('../sanitizer-core');
 
 var PLAYGROUND_URL = 'https://963239327.github.io/craftleaf-studio/extensions/pasteshield/';
-var PRO_URL = 'https://963239327.github.io/craftleaf-studio/extensions/pasteshield/#pro';
-var VSIX_RELEASE_URL = 'https://github.com/963239327/pasteshield-secret-sanitizer/releases/latest/download/pasteshield-ai-secret-sanitizer-1.0.0.vsix';
+var PRO_URL = 'https://stardustdemo.gumroad.com/l/pasteshield-pro';
+var VSIX_RELEASE_URL = 'https://github.com/963239327/pasteshield-secret-sanitizer/releases/latest/download/pasteshield-ai-secret-sanitizer-1.1.0.vsix';
 
 var SKIP_DIRS = {
   '.git': true,
@@ -49,7 +49,7 @@ function printHelp() {
     '  --no-ips             Keep RFC1918 / Tailscale private IPv4s unredacted',
     '  --domain <suffix>    [Pro] Redact internal company domains (e.g. corp.acme.internal)',
     '  --pattern <RULE>     [Pro] Custom regex rule formatted as NAME::regex',
-    '  --license <KEY>      [Pro] Offline SHIELDPRO-... or STUDIOALL-... key (or $PASTESHIELD_LICENSE)',
+    '  --license <KEY>      [Pro] Gumroad License Key for PasteShield Pro or All-Access (or $PASTESHIELD_LICENSE)',
     '  --git-diff           Scan uncommitted `git diff` additions for accidental secret leaks',
     '  --json               Emit structured JSON summary (sanitize / scan)',
     '  -q, --quiet          Suppress stderr status summary',
@@ -227,20 +227,30 @@ function runDemo() {
   return 0;
 }
 
-function runSanitize(opts) {
+async function prepareVault(opts) {
+  var vault = PasteShieldCore.createVault();
+  if (opts && opts.licenseKey && String(opts.licenseKey).trim()) {
+    var check = await vault.verifyGumroadLicense(opts.licenseKey);
+    if (!check.valid && !opts.quiet) {
+      process.stderr.write('[PasteShield Pro] Gumroad license verification failed (' + check.reason + '). Continuing in Free tier.\n');
+    }
+  }
+  return vault;
+}
+
+async function runSanitize(opts) {
   var inputText = opts.positionals.length > 0
     ? fs.readFileSync(opts.positionals[0], 'utf8')
     : readStdinSync();
 
-  var vault = PasteShieldCore.createVault(opts.licenseKey);
+  var vault = await prepareVault(opts);
   loadVaultFromFile(vault, opts.vaultPath);
 
   var res = vault.sanitize(inputText, {
     redactEmails: opts.redactEmails,
     redactInternalIps: opts.redactInternalIps,
     companyDomains: opts.companyDomains,
-    customPatterns: opts.customPatterns,
-    licenseKey: opts.licenseKey
+    customPatterns: opts.customPatterns
   });
 
   if (opts.vaultPath) {
@@ -262,7 +272,7 @@ function runSanitize(opts) {
     if (res.proGatedCustomRules > 0) {
       process.stderr.write(
         '[PasteShield Pro] ' + res.proGatedCustomRules +
-        ' custom domain/regex rule(s) skipped (requires offline SHIELDPRO/STUDIOALL key: ' + PRO_URL + ')\n'
+        ' custom domain/regex rule(s) skipped (pass --license <GUMROAD_KEY> or $PASTESHIELD_LICENSE: ' + PRO_URL + ')\n'
       );
     }
   }
@@ -282,7 +292,7 @@ function runRestore(opts) {
     ? fs.readFileSync(opts.positionals[0], 'utf8')
     : readStdinSync();
 
-  var vault = PasteShieldCore.createVault(opts.licenseKey);
+  var vault = PasteShieldCore.createVault();
   loadVaultFromFile(vault, opts.vaultPath);
 
   var res = vault.restore(inputText);
@@ -299,7 +309,7 @@ function runRestore(opts) {
   return 0;
 }
 
-function runScan(opts) {
+async function runScan(opts) {
   var targets = [];
   if (opts.gitDiff) {
     var diffOut = childProcess.execSync('git --no-pager diff HEAD', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
@@ -322,15 +332,14 @@ function runScan(opts) {
     }
   }
 
-  var vault = PasteShieldCore.createVault(opts.licenseKey);
-  if (vault.isPro(opts.licenseKey)) {
+  var vault = await prepareVault(opts);
+  if (vault.isPro()) {
     var proReport = vault.buildSecretAuditReport(targets, {
       redactEmails: opts.redactEmails,
       redactInternalIps: opts.redactInternalIps,
       companyDomains: opts.companyDomains,
       customPatterns: opts.customPatterns,
-      diffAddedOnly: opts.gitDiff,
-      licenseKey: opts.licenseKey
+      diffAddedOnly: opts.gitDiff
     });
     if (opts.json) {
       process.stdout.write(JSON.stringify(proReport, null, 2) + '\n');
@@ -401,16 +410,16 @@ function runScan(opts) {
   return 2;
 }
 
-function runPack(opts) {
+async function runPack(opts) {
   if (opts.positionals.length === 0) {
     process.stderr.write('[PasteShield] Error: `pack` requires one or more file paths.\n');
     return 1;
   }
-  var vault = PasteShieldCore.createVault(opts.licenseKey);
-  if (!vault.isPro(opts.licenseKey)) {
+  var vault = await prepareVault(opts);
+  if (!vault.isPro()) {
     process.stderr.write(
-      '[PasteShield Pro] Multi-File Sanitized AI Markdown Context Pack requires an offline PasteShield Pro (`SHIELDPRO-...`) or Studio All-Access (`STUDIOALL-...`) key.\n' +
-      'Unlock lifetime offline license ($9 one-time): ' + PRO_URL + '\n'
+      '[PasteShield Pro] Multi-File Sanitized AI Markdown Context Pack requires a valid Gumroad PasteShield Pro or CraftLeaf All-Access license key (`--license <KEY>` or `$PASTESHIELD_LICENSE`).\n' +
+      'Get lifetime license ($9 one-time): ' + PRO_URL + '\n'
     );
     return 1;
   }
@@ -427,8 +436,7 @@ function runPack(opts) {
     redactEmails: opts.redactEmails,
     redactInternalIps: opts.redactInternalIps,
     companyDomains: opts.companyDomains,
-    customPatterns: opts.customPatterns,
-    licenseKey: opts.licenseKey
+    customPatterns: opts.customPatterns
   });
 
   if (opts.vaultPath) {
@@ -438,7 +446,7 @@ function runPack(opts) {
   return 0;
 }
 
-function main() {
+async function main() {
   var opts = parseArgs(process.argv.slice(2));
   if (opts.version) {
     process.stdout.write(PasteShieldCore.VERSION + '\n');
@@ -456,13 +464,13 @@ function main() {
   } else if (opts.command === 'demo') {
     code = runDemo();
   } else if (opts.command === 'sanitize') {
-    code = runSanitize(opts);
+    code = await runSanitize(opts);
   } else if (opts.command === 'restore') {
     code = runRestore(opts);
   } else if (opts.command === 'scan') {
-    code = runScan(opts);
+    code = await runScan(opts);
   } else if (opts.command === 'pack') {
-    code = runPack(opts);
+    code = await runPack(opts);
   } else {
     process.stderr.write('[PasteShield] Unknown command: ' + opts.command + '\n\n');
     printHelp();
@@ -471,4 +479,7 @@ function main() {
   process.exit(code);
 }
 
-main();
+main().catch(function (err) {
+  process.stderr.write('[PasteShield] Fatal error: ' + (err && err.message ? err.message : String(err)) + '\n');
+  process.exit(1);
+});

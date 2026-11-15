@@ -13,7 +13,18 @@ var fs = require('fs');
 var path = require('path');
 var PasteShieldCore = require('../sanitizer-core');
 
-var sessionVault = PasteShieldCore.createVault(process.env.PASTESHIELD_LICENSE || '');
+var sessionVault = PasteShieldCore.createVault();
+var lastVerifiedMcpKey = '';
+
+async function ensureMcpLicense(argLicenseKey) {
+  var candidate = String(argLicenseKey || process.env.PASTESHIELD_LICENSE || '').trim();
+  if (!candidate) return;
+  if (candidate === lastVerifiedMcpKey && sessionVault.isPro()) return;
+  var res = await sessionVault.verifyGumroadLicense(candidate);
+  if (res && res.valid) {
+    lastVerifiedMcpKey = candidate;
+  }
+}
 
 var TOOLS = [
   {
@@ -24,7 +35,9 @@ var TOOLS = [
       properties: {
         text: { type: 'string', description: 'Raw code, .env snippet, or stack trace to sanitize locally.' },
         redactEmails: { type: 'boolean', description: 'Redact email addresses (default true).' },
-        redactInternalIps: { type: 'boolean', description: 'Redact RFC1918/CGNAT internal IPv4 addresses (default true).' }
+        redactInternalIps: { type: 'boolean', description: 'Redact RFC1918/CGNAT internal IPv4 addresses (default true).' },
+        companyDomains: { type: 'array', items: { type: 'string' }, description: '[Pro] Internal company domains to redact.' },
+        licenseKey: { type: 'string', description: '[Optional Pro] Gumroad license key (or set $PASTESHIELD_LICENSE).' }
       },
       required: ['text']
     }
@@ -71,18 +84,21 @@ function collectFiles(target, acc) {
   }
 }
 
-function handleToolCall(params) {
+async function handleToolCall(params) {
   var name = params && params.name;
   var args = (params && params.arguments) || {};
+  await ensureMcpLicense(args.licenseKey);
 
   if (name === 'sanitize_snippet') {
     var res = sessionVault.sanitize(String(args.text || ''), {
       redactEmails: args.redactEmails !== false,
-      redactInternalIps: args.redactInternalIps !== false
+      redactInternalIps: args.redactInternalIps !== false,
+      companyDomains: Array.isArray(args.companyDomains) ? args.companyDomains : []
     });
     var payload = {
       sanitizedText: res.sanitizedText,
       redactionCount: res.totalRedactions,
+      proActive: res.proActive,
       activeVaultPlaceholders: sessionVault.size(),
       categoriesDetected: res.summary
     };
@@ -152,7 +168,7 @@ function sendMessage(msg) {
   }
 }
 
-function dispatchRpc(req) {
+async function dispatchRpc(req) {
   if (!req || typeof req !== 'object') return;
   var id = req.id;
   var method = req.method;
@@ -180,7 +196,7 @@ function dispatchRpc(req) {
     } else if (method === 'tools/list') {
       sendMessage({ jsonrpc: '2.0', id: id, result: { tools: TOOLS } });
     } else if (method === 'tools/call') {
-      var res = handleToolCall(req.params || {});
+      var res = await handleToolCall(req.params || {});
       sendMessage({ jsonrpc: '2.0', id: id, result: res });
     } else {
       sendMessage({
@@ -200,6 +216,12 @@ function dispatchRpc(req) {
 
 function startMcpServer() {
   var buf = Buffer.alloc(0);
+  var rpcQueue = Promise.resolve();
+  function enqueueRpc(msgObj) {
+    rpcQueue = rpcQueue.then(function () {
+      return dispatchRpc(msgObj);
+    }).catch(function () {});
+  }
   process.stdin.on('data', function (chunk) {
     buf = Buffer.concat([buf, Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)]);
     while (buf.length > 0) {
@@ -215,14 +237,14 @@ function startMcpServer() {
         if (buf.length < totalNeeded) return;
         var bodyStr = buf.slice(sepIdx + 4, totalNeeded).toString('utf8');
         buf = buf.slice(totalNeeded);
-        try { dispatchRpc(JSON.parse(bodyStr)); } catch (_e) {}
+        try { enqueueRpc(JSON.parse(bodyStr)); } catch (_e) {}
       } else {
         var nlIdx = buf.indexOf('\n');
         if (nlIdx === -1) return;
         var line = buf.slice(0, nlIdx).toString('utf8').trim();
         buf = buf.slice(nlIdx + 1);
         if (line) {
-          try { dispatchRpc(JSON.parse(line)); } catch (_e) {}
+          try { enqueueRpc(JSON.parse(line)); } catch (_e) {}
         }
       }
     }
