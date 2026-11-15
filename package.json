@@ -1,10 +1,11 @@
 {
   "name": "pasteshield-secret-sanitizer",
-  "version": "1.0.0",
-  "description": "Reversible offline AI prompt & clipboard secret sanitizer for ChatGPT, Claude, Cursor & VS Code. Redacts API keys, JWTs, DB URIs, cloud credentials & internal IPs into deterministic <OPENAI_KEY_1> placeholders and restores AI code replies in 1 click.",
+  "version": "1.1.0",
+  "description": "Reversible offline AI prompt & clipboard secret sanitizer + Local MCP Server for ChatGPT, Claude, Cursor & VS Code. Redacts API keys, JWTs, DB URIs, cloud credentials & internal IPs into deterministic <OPENAI_KEY_1> placeholders and restores AI code replies in 1 click.",
   "main": "./sanitizer-core.js",
   "bin": {
-    "pasteshield": "./bin/pasteshield-cli.js"
+    "pasteshield": "./bin/pasteshield-cli.js",
+    "pasteshield-mcp": "./bin/pasteshield-mcp.js"
   },
   "scripts": {
     "test": "node ./test/cli.test.js",

@@ -71,7 +71,22 @@ export const checkoutEnv = {
 
 ---
 
-## 3 Ways to Use PasteShield
+## 4 Ways to Use PasteShield
+
+### Local MCP Server (Claude Desktop · Cursor · Windsurf · VS Code Copilot)
+Run PasteShield as a **zero-dependency local stdio MCP Server** (`sanitize_snippet`, `restore_snippet`, `audit_workspace_secrets`) with zero npm signup required:
+
+```json
+{
+  "mcpServers": {
+    "pasteshield": {
+      "command": "npx",
+      "args": ["-y", "github:963239327/pasteshield-secret-sanitizer", "--mcp"]
+    }
+  }
+}
+```
+Also installable from the [**Official Visual Studio Marketplace**](https://marketplace.visualstudio.com/items?itemName=craftleaf-studio.pasteshield-ai-secret-sanitizer).
 
 ### Option A: VS Code, Cursor & VSCodium Extension (`.vsix`)
 1. Download **[`pasteshield-ai-secret-sanitizer-1.0.0.vsix`](https://github.com/963239327/pasteshield-secret-sanitizer/releases/download/v1.0.0/pasteshield-ai-secret-sanitizer-1.0.0.vsix)** from [GitHub Releases](https://github.com/963239327/pasteshield-secret-sanitizer/releases/latest).

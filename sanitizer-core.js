@@ -10,7 +10,10 @@
 (function (root) {
   'use strict';
 
-  var LICENSE_SALT = 'StudioCraft-2026-v1';
+  var ISSUED_SHIELD_DIGESTS = {
+    SHIELDPRO: ["3073d341e9391f056f0aab20c4e5b103", "3cd51790299c5846fdff123cc2055e48", "4fd0bc2bc5a9fdf4987995f9200eef03", "5d742b8b3ae4d1c81de916ad6fb4487b", "6a2e1589b6b7c53e2a78edc0df6e65a8", "88d2d9c4e6ef51a27a3ac918fb6434e3", "a947aa8852169c177d23421a07f51541", "bc58c63a3258a7c0dce32601bd418912", "cb2290ae400b122c42a31ed8106ce0c9", "ec5d4bfea182afe0823aa5551b5e1cb3"],
+    STUDIOALL: ["1db16356d5a5db09337a4d57ac9db384", "365b9dc1ddf107a8de00d7e11934ab4b", "3709434e4f94a040f149907f8c1cf400", "517e1a423c4062608922fd5c0772b51d", "537bb184e3f92acfde0f839ce39027ba", "7207c9506ee908dd863bf31e79c13505", "9b2e8b596843e8c8d0e4e349c32f449e", "ab08ceb6497194b0252b844d5a7e2cbd", "c0c96a2e3667ac38c16b3b26bbbabfb2", "f905872645dc9b77bbc478c783dc941e"]
+  };
   var ALLOWED_PREFIXES = ['SHIELDPRO', 'STUDIOALL'];
   var PLACEHOLDER_EXACT_RE = /^<[A-Z][A-Z0-9_]{1,40}_[1-9]\d*>$/;
   var PLACEHOLDER_ANY_RE = /<([A-Z][A-Z0-9_]{1,40})_([1-9]\d*)>/g;
@@ -47,17 +50,51 @@
     EMAIL: 'MEDIUM'
   };
 
-  /**
-   * Exact FNV-1a 32-bit hash formatted as 6 uppercase hex characters,
-   * matching shared/monetization-sdk.js.
-   */
-  function fnv1aHex6(str) {
-    var h = 0x811c9dc5;
-    for (var i = 0; i < str.length; i++) {
-      h ^= str.charCodeAt(i);
-      h = Math.imul(h, 0x01000193) >>> 0;
+  var K256 = [
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+  ];
+  function rotr(x, n) { return (x >>> n) | (x << (32 - n)); }
+  function sha256Hex(str) {
+    var utf8 = unescape(encodeURIComponent(String(str)));
+    var bitLen = utf8.length * 8;
+    var words = [];
+    for (var i = 0; i < utf8.length; i++) words[i >> 2] |= (utf8.charCodeAt(i) & 0xff) << (24 - (i % 4) * 8);
+    words[utf8.length >> 2] |= 0x80 << (24 - (utf8.length % 4) * 8);
+    var totalWords = (((utf8.length + 8) >> 6) + 1) * 16;
+    for (var z = 0; z < totalWords; z++) if (words[z] === undefined) words[z] = 0;
+    words[totalWords - 2] = Math.floor(bitLen / 0x100000000);
+    words[totalWords - 1] = bitLen >>> 0;
+    var H = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19];
+    var W = new Array(64);
+    for (var offset = 0; offset < totalWords; offset += 16) {
+      for (var t = 0; t < 16; t++) W[t] = words[offset + t] | 0;
+      for (var t2 = 16; t2 < 64; t2++) {
+        var s0 = rotr(W[t2 - 15], 7) ^ rotr(W[t2 - 15], 18) ^ (W[t2 - 15] >>> 3);
+        var s1 = rotr(W[t2 - 2], 17) ^ rotr(W[t2 - 2], 19) ^ (W[t2 - 2] >>> 10);
+        W[t2] = (W[t2 - 16] + s0 + W[t2 - 7] + s1) | 0;
+      }
+      var a = H[0], b = H[1], c = H[2], d = H[3], e = H[4], f = H[5], g = H[6], h = H[7];
+      for (var r = 0; r < 64; r++) {
+        var S1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
+        var ch = (e & f) ^ ((~e) & g);
+        var temp1 = (h + S1 + ch + K256[r] + W[r]) | 0;
+        var S0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
+        var maj = (a & b) ^ (a & c) ^ (b & c);
+        var temp2 = (S0 + maj) | 0;
+        h = g; g = f; f = e; e = (d + temp1) | 0; d = c; c = b; b = a; a = (temp1 + temp2) | 0;
+      }
+      for (var hi = 0; hi < 8; hi++) H[hi] = (H[hi] + [a, b, c, d, e, f, g, h][hi]) | 0;
     }
-    return ('00000000' + h.toString(16).toUpperCase()).slice(-8).slice(0, 6);
+    var hex = '';
+    for (var x = 0; x < 8; x++) hex += ('00000000' + (H[x] >>> 0).toString(16)).slice(-8);
+    return hex;
   }
 
   function normalizeLicenseKey(raw) {
@@ -65,8 +102,8 @@
   }
 
   /**
-   * Offline cryptographic checksum verifier for PasteShield Pro keys:
-   * Accepts SHIELDPRO-XXXX-XXXX-XXXXXX or STUDIOALL-XXXX-XXXX-XXXXXX.
+   * One-way SHA-256 digest verifier for pre-issued PasteShield Pro / StudioAll keys (#4).
+   * Zero key-generation or reversible checksum math is shipped in client code.
    */
   function verifyLicenseKey(rawKey, customPrefixes) {
     var key = normalizeLicenseKey(rawKey);
@@ -78,30 +115,23 @@
       return { valid: false, reason: 'format' };
     }
     var prefix = parts[0];
-    var p1 = parts[1];
-    var p2 = parts[2];
-    var sig = parts[3];
-
     var validPrefixes = Array.isArray(customPrefixes) && customPrefixes.length
       ? customPrefixes.concat(['STUDIOALL'])
       : ALLOWED_PREFIXES;
-
     if (validPrefixes.indexOf(prefix) === -1) {
       return { valid: false, reason: 'prefix' };
     }
-    if (!/^[A-Z2-9]{4}$/.test(p1) || !/^[A-Z2-9]{4}$/.test(p2) || !/^[0-9A-F]{6}$/.test(sig)) {
-      return { valid: false, reason: 'charset' };
-    }
-    var expected = fnv1aHex6(prefix + '-' + p1 + '-' + p2 + '::' + LICENSE_SALT);
-    if (sig !== expected) {
-      return { valid: false, reason: 'checksum' };
+    var table = ISSUED_SHIELD_DIGESTS[prefix] || [];
+    var digest = sha256Hex('CraftLeaf-Issued-v2::' + key).slice(0, 32);
+    if (table.indexOf(digest) === -1) {
+      return { valid: false, reason: 'unrecognized' };
     }
     return {
       valid: true,
-      mode: 'offline',
+      mode: 'issued',
       prefix: prefix,
       tier: prefix === 'STUDIOALL' ? 'all-access' : 'pro',
-      key: key
+      digest: digest
     };
   }
 
@@ -689,11 +719,9 @@
   }
 
   var PasteShieldCore = {
-    VERSION: '1.0.0',
-    LICENSE_SALT: LICENSE_SALT,
+    VERSION: '1.1.0',
     ALLOWED_PREFIXES: ALLOWED_PREFIXES,
     CATEGORY_SEVERITY: CATEGORY_SEVERITY,
-    fnv1aHex6: fnv1aHex6,
     normalizeLicenseKey: normalizeLicenseKey,
     verifyLicenseKey: verifyLicenseKey,
     maskSecretPreview: maskSecretPreview,

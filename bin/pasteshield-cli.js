@@ -31,6 +31,7 @@ function printHelp() {
     'PasteShield v' + PasteShieldCore.VERSION + ' — Reversible Offline AI Prompt & Clipboard Secret Sanitizer',
     '',
     'USAGE:',
+    '  pasteshield --mcp                 Start local stdio Model Context Protocol (MCP) server',
     '  pasteshield demo',
     '  pasteshield sanitize [file] [--vault <vault.json>] [--quiet] [--json]',
     '  pasteshield restore  [file] --vault <vault.json> [--quiet]',
@@ -82,7 +83,9 @@ function parseArgs(argv) {
 
   for (var i = 0; i < argv.length; i++) {
     var arg = argv[i];
-    if (arg === '-h' || arg === '--help') {
+    if (arg === '--mcp' || arg === 'mcp') {
+      opts.command = 'mcp';
+    } else if (arg === '-h' || arg === '--help') {
       opts.help = true;
     } else if (arg === '-v' || arg === '--version') {
       opts.version = true;
@@ -447,7 +450,10 @@ function main() {
   }
 
   var code = 0;
-  if (opts.command === 'demo') {
+  if (opts.command === 'mcp') {
+    require('./pasteshield-mcp').startMcpServer();
+    return;
+  } else if (opts.command === 'demo') {
     code = runDemo();
   } else if (opts.command === 'sanitize') {
     code = runSanitize(opts);
