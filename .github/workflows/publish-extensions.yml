@@ -1,0 +1,50 @@
+name: Publish Extension (OIDC Trusted Publishing)
+
+on:
+  workflow_dispatch:
+    inputs:
+      vsix_url:
+        description: "GitHub Release .vsix URL to publish"
+        required: false
+        default: "https://github.com/963239327/pasteshield-secret-sanitizer/releases/latest/download/pasteshield-ai-secret-sanitizer-1.1.0.vsix"
+  release:
+    types: [published]
+
+jobs:
+  publish-vscode-marketplace:
+    name: Visual Studio Marketplace (OIDC)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Download Verified Release VSIX
+        run: |
+          URL="${{ inputs.vsix_url || 'https://github.com/963239327/pasteshield-secret-sanitizer/releases/latest/download/pasteshield-ai-secret-sanitizer-1.1.0.vsix' }}"
+          curl -fsSL "$URL" -o pasteshield.vsix
+          ls -lh pasteshield.vsix
+      - name: Publish to VS Code Marketplace via OIDC Trusted Publishing
+        run: npx -y @vscode/vsce@latest publish --oidc --skip-duplicate --packagePath pasteshield.vsix
+
+  publish-open-vsx:
+    name: Open VSX Registry (OIDC)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Download Verified Release VSIX
+        run: |
+          URL="${{ inputs.vsix_url || 'https://github.com/963239327/pasteshield-secret-sanitizer/releases/latest/download/pasteshield-ai-secret-sanitizer-1.1.0.vsix' }}"
+          curl -fsSL "$URL" -o pasteshield.vsix
+          ls -lh pasteshield.vsix
+      - name: Publish to Open VSX Registry via OIDC Trusted Publishing
+        run: npx -y ovsx@latest publish pasteshield.vsix --skip-duplicate
