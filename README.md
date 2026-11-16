@@ -6,8 +6,9 @@
 
 **Redact API keys, `.env` secrets, JWTs, database URIs, cloud connection strings & internal IPs before prompting ChatGPT, Claude, Cursor, or Copilot — and restore real credentials in 1 click.**
 
-[![Install on VS Code Marketplace](https://img.shields.io/badge/VS_Code_Marketplace-Install_v1.1.0-007ACC?style=for-the-badge&logo=visualstudiocode&logoColor=white)](https://marketplace.visualstudio.com/items?itemName=craftleaf-studio.pasteshield-ai-secret-sanitizer)
-[![Install on Open VSX (Cursor / Windsurf / VSCodium)](https://img.shields.io/badge/Open_VSX_Registry-Verified_Publisher-a60ee5?style=for-the-badge&logo=eclipseide&logoColor=white)](https://open-vsx.org/extension/craftleaf-studio/pasteshield-ai-secret-sanitizer)
+[![Download Hardened VSIX v1.1.0](https://img.shields.io/badge/GitHub_Release-Download_v1.1.0_.vsix-10b981?style=for-the-badge&logo=github&logoColor=white)](https://github.com/963239327/pasteshield-secret-sanitizer/releases/latest/download/pasteshield-ai-secret-sanitizer-1.1.0.vsix)
+[![Install on VS Code Marketplace](https://img.shields.io/badge/VS_Code_Marketplace-v1.0.0_(v1.1_queued)-007ACC?style=for-the-badge&logo=visualstudiocode&logoColor=white)](https://marketplace.visualstudio.com/items?itemName=craftleaf-studio.pasteshield-ai-secret-sanitizer)
+[![Install on Open VSX (Cursor / Windsurf / VSCodium)](https://img.shields.io/badge/Open_VSX_Verified-v1.0.0_(v1.1_queued)-a60ee5?style=for-the-badge&logo=eclipseide&logoColor=white)](https://open-vsx.org/extension/craftleaf-studio/pasteshield-ai-secret-sanitizer)
 [![Live Browser Playground](https://img.shields.io/badge/Try_Live_Playground-100%25_In_Browser-06b6d4?style=for-the-badge&logo=googlechrome&logoColor=white)](https://963239327.github.io/craftleaf-studio/extensions/pasteshield/)
 [![Unlock PasteShield Pro](https://img.shields.io/badge/PasteShield_Pro-%249_Lifetime_License-f59e0b?style=for-the-badge)](https://stardustdemo.gumroad.com/l/pasteshield-pro)
 
