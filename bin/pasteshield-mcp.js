@@ -37,6 +37,7 @@ var TOOLS = [
         redactEmails: { type: 'boolean', description: 'Redact email addresses (default true).' },
         redactInternalIps: { type: 'boolean', description: 'Redact RFC1918/CGNAT internal IPv4 addresses (default true).' },
         companyDomains: { type: 'array', items: { type: 'string' }, description: '[Pro] Internal company domains to redact.' },
+        customPatterns: { type: 'array', items: { type: 'string' }, description: '[Pro] Custom regex rules ("LABEL::pattern" or domain strings).' },
         licenseKey: { type: 'string', description: '[Optional Pro] Gumroad license key (or set $PASTESHIELD_LICENSE).' }
       },
       required: ['text']
@@ -55,11 +56,14 @@ var TOOLS = [
   },
   {
     name: 'audit_workspace_secrets',
-    description: 'Scan a local file or directory for exposed credentials and return ONLY masked previews (never raw secret values).',
+    description: 'Scan a local file or directory for exposed credentials and return ONLY masked previews (never raw secret values). Supports Pro companyDomains and customPatterns when unlocked with a Gumroad license.',
     inputSchema: {
       type: 'object',
       properties: {
-        targetPath: { type: 'string', description: 'Local file or directory path to audit (defaults to current working directory).' }
+        targetPath: { type: 'string', description: 'Local file or directory path to audit (defaults to current working directory).' },
+        companyDomains: { type: 'array', items: { type: 'string' }, description: '[Pro] Internal company domains to detect during workspace audit.' },
+        customPatterns: { type: 'array', items: { type: 'string' }, description: '[Pro] Custom regex rules ("LABEL::pattern" or domain strings) to detect.' },
+        licenseKey: { type: 'string', description: '[Optional Pro] Gumroad license key (or set $PASTESHIELD_LICENSE).' }
       }
     }
   }
@@ -93,7 +97,8 @@ async function handleToolCall(params) {
     var res = sessionVault.sanitize(String(args.text || ''), {
       redactEmails: args.redactEmails !== false,
       redactInternalIps: args.redactInternalIps !== false,
-      companyDomains: Array.isArray(args.companyDomains) ? args.companyDomains : []
+      companyDomains: Array.isArray(args.companyDomains) ? args.companyDomains : [],
+      customPatterns: Array.isArray(args.customPatterns) ? args.customPatterns : []
     });
     var payload = {
       sanitizedText: res.sanitizedText,
@@ -119,22 +124,31 @@ async function handleToolCall(params) {
     var rootTarget = path.resolve(String(args.targetPath || process.cwd()));
     var files = [];
     collectFiles(rootTarget, files);
-    var tempVault = PasteShieldCore.createVault();
+    var auditVault = PasteShieldCore.createVault();
+    if (sessionVault.isPro() && lastVerifiedMcpKey) {
+      await auditVault.verifyGumroadLicense(lastVerifiedMcpKey);
+    }
+    var scanOpts = {
+      redactEmails: false,
+      redactInternalIps: false,
+      companyDomains: Array.isArray(args.companyDomains) ? args.companyDomains : [],
+      customPatterns: Array.isArray(args.customPatterns) ? args.customPatterns : []
+    };
     var findings = [];
     for (var i = 0; i < files.length; i++) {
       var content = '';
       try { content = fs.readFileSync(files[i], 'utf8'); } catch (_e) { continue; }
       if (content.indexOf('\u0000') !== -1) continue;
-      tempVault.clear();
-      var scan = tempVault.sanitize(content, { redactEmails: false, redactInternalIps: false });
+      auditVault.clear();
+      var scan = auditVault.sanitize(content, scanOpts);
       if (scan.totalRedactions > 0) {
-        var ents = tempVault.entries();
+        var ents = auditVault.entries();
         for (var j = 0; j < ents.length; j++) {
           findings.push({
             file: path.relative(rootTarget, files[i]) || path.basename(files[i]),
             category: ents[j].category,
             severity: ents[j].severity,
-            maskedPreview: ents[j].maskedPreview,
+            maskedPreview: ents[j].preview || ents[j].maskedPreview,
             placeholder: ents[j].placeholder
           });
         }
@@ -146,8 +160,9 @@ async function handleToolCall(params) {
         text: JSON.stringify({
           scannedFiles: files.length,
           findingsCount: findings.length,
+          proActive: auditVault.isPro(),
           findings: findings.slice(0, 100),
-          proUpgradeNote: 'Get PasteShield VS Code extension or Pro custom corporate domain rules at https://963239327.github.io/craftleaf-studio/extensions/pasteshield/'
+          proUpgradeNote: 'Get PasteShield VS Code / Open VSX extension or Pro custom corporate domain rules at https://963239327.github.io/craftleaf-studio/extensions/pasteshield/'
         }, null, 2)
       }]
     };

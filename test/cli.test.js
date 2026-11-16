@@ -82,6 +82,14 @@ try {
   );
   assert.strictEqual(proCliOut.trim(), 'ENDPOINT=https://<COMPANY_DOMAIN_1>/v1', 'CLI --license awaits Gumroad verify and unlocks Pro domain redaction');
 
+  var auditSampleDir = path.join(SCRATCH_DIR, 'audit-target');
+  fs.mkdirSync(auditSampleDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(auditSampleDir, 'deploy.yaml'),
+    'ingress: https://billing.corp.acme.internal/settle\nticket: FINOPS-4096\n',
+    'utf8'
+  );
+
   var mcpRes = childProcess.spawnSync(
     process.execPath,
     ['--require', mockPreload, CLI_PATH, '--mcp'],
@@ -89,7 +97,8 @@ try {
       env: Object.assign({}, process.env, { PASTESHIELD_LICENSE: 'GUMROAD-MOCK-PRO-KEY-7777' }),
       input: [
         JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2024-11-05' } }),
-        JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'sanitize_snippet', arguments: { text: 'HOST=api.corp.acme.internal', companyDomains: ['corp.acme.internal'] } } })
+        JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'sanitize_snippet', arguments: { text: 'HOST=api.corp.acme.internal', companyDomains: ['corp.acme.internal'] } } }),
+        JSON.stringify({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'audit_workspace_secrets', arguments: { targetPath: auditSampleDir, companyDomains: ['corp.acme.internal'], customPatterns: ['CORP_TICKET::FINOPS-\\d{4}'] } } })
       ].join('\n') + '\n',
       encoding: 'utf8',
       timeout: 8000
@@ -99,6 +108,13 @@ try {
   var mcpPayload = JSON.parse(mcpLines[1].result.content[0].text);
   assert.strictEqual(mcpPayload.proActive, true, 'MCP server awaits Gumroad verify and activates Pro');
   assert.strictEqual(mcpPayload.sanitizedText, 'HOST=<COMPANY_DOMAIN_1>', 'MCP Pro custom domain redaction works');
+
+  var mcpAudit = JSON.parse(mcpLines[2].result.content[0].text);
+  assert.strictEqual(mcpAudit.proActive, true, 'MCP audit_workspace_secrets activates Pro');
+  var auditCats = mcpAudit.findings.map(function (f) { return f.category; });
+  assert.ok(auditCats.indexOf('COMPANY_DOMAIN') !== -1, 'MCP audit_workspace_secrets detects Pro COMPANY_DOMAIN');
+  assert.ok(auditCats.indexOf('CORP_TICKET') !== -1, 'MCP audit_workspace_secrets detects Pro customPatterns');
+  assert.ok(Boolean(mcpAudit.findings[0].maskedPreview), 'MCP audit_workspace_secrets populates maskedPreview');
 
   console.log('All PasteShield Core, CLI & MCP Gumroad Pro tests passed (0 dependencies).');
 } finally {
