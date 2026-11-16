@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       vsix_url:
-        description: "GitHub Release .vsix URL to publish"
+        description: "Optional explicit GitHub Release .vsix URL (defaults dynamically to package.json version)"
         required: false
-        default: "https://github.com/963239327/pasteshield-secret-sanitizer/releases/latest/download/pasteshield-ai-secret-sanitizer-1.1.1.vsix"
+        default: ""
   release:
     types: [published]
 
@@ -23,15 +23,20 @@ jobs:
         with:
           node-version: 22
       - name: Download Verified Release VSIX
+        env:
+          INPUT_VSIX_URL: ${{ inputs.vsix_url }}
         run: |
-          URL="${{ inputs.vsix_url || 'https://github.com/963239327/pasteshield-secret-sanitizer/releases/latest/download/pasteshield-ai-secret-sanitizer-1.1.1.vsix' }}"
+          PKG_VER=$(node -p "require('./package.json').version")
+          DEFAULT_URL="https://github.com/963239327/pasteshield-secret-sanitizer/releases/download/v${PKG_VER}/pasteshield-ai-secret-sanitizer-${PKG_VER}.vsix"
+          URL="${INPUT_VSIX_URL:-$DEFAULT_URL}"
+          echo "Downloading $URL (target version v${PKG_VER})..."
           curl -fsSL "$URL" -o pasteshield.vsix
           ls -lh pasteshield.vsix
       - name: Publish to VS Code Marketplace via OIDC Trusted Publishing
         run: npx -y @vscode/vsce@latest publish --oidc --skip-duplicate --packagePath pasteshield.vsix
 
   publish-open-vsx:
-    name: Open VSX Registry (Skip if already live)
+    name: Open VSX Registry (Skip if live or OVSX_PAT unset)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -44,6 +49,7 @@ jobs:
       - name: Check Open VSX Version & Publish if Needed
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
+          INPUT_VSIX_URL: ${{ inputs.vsix_url }}
         run: |
           PKG_VER=$(node -p "require('./package.json').version")
           LIVE_VER=$(curl -fsSL https://open-vsx.org/api/craftleaf-studio/pasteshield-ai-secret-sanitizer | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>console.log(JSON.parse(d).version||''))")
@@ -52,6 +58,11 @@ jobs:
             echo "Open VSX is already at $PKG_VER — skipping duplicate publish."
             exit 0
           fi
-          URL="${{ inputs.vsix_url || 'https://github.com/963239327/pasteshield-secret-sanitizer/releases/latest/download/pasteshield-ai-secret-sanitizer-1.1.1.vsix' }}"
+          if [ -z "$OVSX_PAT" ]; then
+            echo "::notice::OVSX_PAT secret is not set in GitHub Actions; skipping Open VSX publish in CI (handled headlessly via sync_storefronts_api.py)."
+            exit 0
+          fi
+          DEFAULT_URL="https://github.com/963239327/pasteshield-secret-sanitizer/releases/download/v${PKG_VER}/pasteshield-ai-secret-sanitizer-${PKG_VER}.vsix"
+          URL="${INPUT_VSIX_URL:-$DEFAULT_URL}"
           curl -fsSL "$URL" -o pasteshield.vsix
           npx -y ovsx@latest publish pasteshield.vsix --skip-duplicate
