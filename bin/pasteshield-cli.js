@@ -14,7 +14,7 @@ var PasteShieldCore = require('../sanitizer-core');
 
 var PLAYGROUND_URL = 'https://963239327.github.io/craftleaf-studio/extensions/pasteshield/';
 var PRO_URL = 'https://stardustdemo.gumroad.com/l/pasteshield-pro';
-var VSIX_RELEASE_URL = 'https://github.com/963239327/pasteshield-secret-sanitizer/releases/latest/download/pasteshield-ai-secret-sanitizer-1.1.0.vsix';
+var VSIX_RELEASE_URL = 'https://github.com/963239327/pasteshield-secret-sanitizer/releases/latest/download/pasteshield-ai-secret-sanitizer-1.1.1.vsix';
 
 var SKIP_DIRS = {
   '.git': true,

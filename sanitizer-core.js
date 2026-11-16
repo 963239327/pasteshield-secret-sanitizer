@@ -11,6 +11,10 @@
   'use strict';
 
   var GUMROAD_VERIFY_URL = 'https://api.gumroad.com/v2/licenses/verify';
+  var GUMROAD_PRODUCT_IDS = {
+    'pasteshield-pro': 'bZpK_yrf74s1q7yszWnN-g==',
+    'craftleaf-all-access': '_ozQI3vwerYovvH_VYeHYw=='
+  };
   var ALLOWED_PREFIXES = ['SHIELDPRO', 'STUDIOALL'];
   var verifiedVaultMap = typeof WeakMap === 'function' ? new WeakMap() : null;
   var PLACEHOLDER_EXACT_RE = /^<[A-Z][A-Z0-9_]{1,40}_[1-9]\d*>$/;
@@ -53,12 +57,15 @@
   }
 
   function encodeGumroadBody(permalink, trimmedKey) {
-    return 'product_permalink=' + encodeURIComponent(permalink) +
+    var pid = GUMROAD_PRODUCT_IDS[permalink] || '';
+    return (pid ? 'product_id=' + encodeURIComponent(pid) + '&' : '') +
+      'product_permalink=' + encodeURIComponent(permalink) +
       '&license_key=' + encodeURIComponent(trimmedKey) +
       '&increment_uses_count=false';
   }
 
   async function verifyGumroadPermalink(permalink, trimmedKey) {
+    var expectedPid = GUMROAD_PRODUCT_IDS[permalink] || '';
     var resp = await fetch(GUMROAD_VERIFY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -70,7 +77,10 @@
       if (p && (p.refunded || p.chargebacked || p.disputed)) {
         return { valid: false, reason: 'refunded' };
       }
-      if (p && p.permalink && String(p.permalink) !== String(permalink)) {
+      if (p && p.product_id && expectedPid && String(p.product_id) !== String(expectedPid)) {
+        return { valid: false, reason: 'invalid' };
+      }
+      if (p && (!p.product_id || !expectedPid) && p.permalink && String(p.permalink) !== String(permalink)) {
         return { valid: false, reason: 'invalid' };
       }
       return { valid: true };
@@ -705,7 +715,7 @@
   }
 
   var PasteShieldCore = {
-    VERSION: '1.1.0',
+    VERSION: '1.1.1',
     ALLOWED_PREFIXES: ALLOWED_PREFIXES,
     CATEGORY_SEVERITY: CATEGORY_SEVERITY,
     normalizeLicenseKey: normalizeLicenseKey,

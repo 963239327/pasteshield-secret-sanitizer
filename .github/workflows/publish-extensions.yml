@@ -6,7 +6,7 @@ on:
       vsix_url:
         description: "GitHub Release .vsix URL to publish"
         required: false
-        default: "https://github.com/963239327/pasteshield-secret-sanitizer/releases/latest/download/pasteshield-ai-secret-sanitizer-1.1.0.vsix"
+        default: "https://github.com/963239327/pasteshield-secret-sanitizer/releases/latest/download/pasteshield-ai-secret-sanitizer-1.1.1.vsix"
   release:
     types: [published]
 
@@ -24,14 +24,14 @@ jobs:
           node-version: 22
       - name: Download Verified Release VSIX
         run: |
-          URL="${{ inputs.vsix_url || 'https://github.com/963239327/pasteshield-secret-sanitizer/releases/latest/download/pasteshield-ai-secret-sanitizer-1.1.0.vsix' }}"
+          URL="${{ inputs.vsix_url || 'https://github.com/963239327/pasteshield-secret-sanitizer/releases/latest/download/pasteshield-ai-secret-sanitizer-1.1.1.vsix' }}"
           curl -fsSL "$URL" -o pasteshield.vsix
           ls -lh pasteshield.vsix
       - name: Publish to VS Code Marketplace via OIDC Trusted Publishing
         run: npx -y @vscode/vsce@latest publish --oidc --skip-duplicate --packagePath pasteshield.vsix
 
   publish-open-vsx:
-    name: Open VSX Registry (OIDC)
+    name: Open VSX Registry (Skip if already live)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -41,10 +41,17 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Download Verified Release VSIX
+      - name: Check Open VSX Version & Publish if Needed
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
         run: |
-          URL="${{ inputs.vsix_url || 'https://github.com/963239327/pasteshield-secret-sanitizer/releases/latest/download/pasteshield-ai-secret-sanitizer-1.1.0.vsix' }}"
+          PKG_VER=$(node -p "require('./package.json').version")
+          LIVE_VER=$(curl -fsSL https://open-vsx.org/api/craftleaf-studio/pasteshield-ai-secret-sanitizer | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>console.log(JSON.parse(d).version||''))")
+          echo "Target=$PKG_VER Live=$LIVE_VER"
+          if [ "$PKG_VER" = "$LIVE_VER" ]; then
+            echo "Open VSX is already at $PKG_VER — skipping duplicate publish."
+            exit 0
+          fi
+          URL="${{ inputs.vsix_url || 'https://github.com/963239327/pasteshield-secret-sanitizer/releases/latest/download/pasteshield-ai-secret-sanitizer-1.1.1.vsix' }}"
           curl -fsSL "$URL" -o pasteshield.vsix
-          ls -lh pasteshield.vsix
-      - name: Publish to Open VSX Registry via OIDC Trusted Publishing
-        run: npx -y ovsx@latest publish pasteshield.vsix --skip-duplicate
+          npx -y ovsx@latest publish pasteshield.vsix --skip-duplicate
