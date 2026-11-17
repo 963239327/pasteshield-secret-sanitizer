@@ -1,0 +1,15 @@
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties:
+      pasteshieldLicense:
+        type: string
+        description: Optional Gumroad License Key to unlock custom enterprise regex and company domain redaction rules.
+  commandFunction:
+    |-
+    (config) => ({
+      command: 'node',
+      args: ['./bin/pasteshield-mcp.js'],
+      env: config && config.pasteshieldLicense ? { PASTESHIELD_LICENSE: config.pasteshieldLicense } : {}
+    })
