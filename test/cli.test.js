@@ -116,6 +116,17 @@ try {
   assert.ok(auditCats.indexOf('CORP_TICKET') !== -1, 'MCP audit_workspace_secrets detects Pro customPatterns');
   assert.ok(Boolean(mcpAudit.findings[0].maskedPreview), 'MCP audit_workspace_secrets populates maskedPreview');
 
+  // 6. Issue #57: init-policy & .pasteshield.json repo policy auto-loading
+  var policyPath = path.join(SCRATCH_DIR, '.pasteshield.json');
+  childProcess.execFileSync(process.execPath, [CLI_PATH, 'init-policy', '--policy', policyPath], { encoding: 'utf8' });
+  assert.ok(fs.existsSync(policyPath), 'init-policy wrote .pasteshield.json');
+  var policySanOut = childProcess.execFileSync(
+    process.execPath,
+    ['--require', mockPreload, CLI_PATH, 'sanitize', '--policy', policyPath, '--license', 'GUMROAD-MOCK-PRO-KEY-7777', '--quiet'],
+    { input: 'TICKET=SEC-ABCD1234EFGH5678', encoding: 'utf8' }
+  );
+  assert.strictEqual(policySanOut.trim(), 'TICKET=<INTERNAL_TICKET_TOKEN_1>', 'CLI --policy applies customPatterns from .pasteshield.json');
+
   console.log('All PasteShield Core, CLI & MCP Gumroad Pro tests passed (0 dependencies).');
 } finally {
   cleanup();

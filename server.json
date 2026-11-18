@@ -1,0 +1,21 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.963239327/pasteshield-secret-sanitizer",
+  "title": "PasteShield Reversible Secret Sanitizer",
+  "description": "Reversible local secret sanitizer & placeholder vault for AI coding prompts (zero cloud uploads).",
+  "repository": {
+    "url": "https://github.com/963239327/pasteshield-secret-sanitizer",
+    "source": "github"
+  },
+  "version": "1.2.0",
+  "packages": [
+    {
+      "registryType": "mcpb",
+      "identifier": "https://github.com/963239327/pasteshield-secret-sanitizer/releases/download/v1.2.0/pasteshield-secret-sanitizer.mcpb",
+      "fileSha256": "bc6226dce7e4504a358ed1ba5ca9fed4957ccd932892a7df46fcf5d050f9a2ed",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

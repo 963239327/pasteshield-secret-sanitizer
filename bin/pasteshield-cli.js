@@ -14,7 +14,7 @@ var PasteShieldCore = require('../sanitizer-core');
 
 var PLAYGROUND_URL = 'https://963239327.github.io/craftleaf-studio/extensions/pasteshield/';
 var PRO_URL = 'https://stardustdemo.gumroad.com/l/pasteshield-pro';
-var VSIX_RELEASE_URL = 'https://github.com/963239327/pasteshield-secret-sanitizer/releases/latest/download/pasteshield-ai-secret-sanitizer-1.1.1.vsix';
+var VSIX_RELEASE_URL = 'https://github.com/963239327/pasteshield-secret-sanitizer/releases/latest/download/pasteshield-ai-secret-sanitizer-1.2.0.vsix';
 
 var SKIP_DIRS = {
   '.git': true,
@@ -35,8 +35,10 @@ function printHelp() {
     '  pasteshield demo',
     '  pasteshield sanitize [file] [--vault <vault.json>] [--quiet] [--json]',
     '  pasteshield restore  [file] --vault <vault.json> [--quiet]',
-    '  pasteshield scan     [paths...] [--git-diff] [--license <KEY>]',
-    '  pasteshield pack     <files...> --license <KEY> [--vault <vault.json>]',
+    '  pasteshield scan        [paths...] [--git-diff] [--policy <.pasteshield.json>] [--license <KEY>]',
+    '  pasteshield pre-commit  [--license <KEY>]    Scan staged `git diff --cached` & block secret commits',
+    '  pasteshield init-policy [--install-hook]     Create starter `.pasteshield.json` (+ Git pre-commit hook)',
+    '  pasteshield pack        <files...> --license <KEY> [--vault <vault.json>]',
     '',
     'STDIN / PIPE EXAMPLES:',
     '  cat .env | node bin/pasteshield-cli.js sanitize --vault .pasteshield-vault.json',
@@ -73,6 +75,8 @@ function parseArgs(argv) {
     redactInternalIps: true,
     companyDomains: [],
     customPatterns: [],
+    policyPath: '',
+    installHook: false,
     licenseKey: process.env.PASTESHIELD_LICENSE || '',
     gitDiff: false,
     json: false,
@@ -105,6 +109,10 @@ function parseArgs(argv) {
       opts.companyDomains.push(argv[++i]);
     } else if (arg === '--pattern' && i + 1 < argv.length) {
       opts.customPatterns.push(argv[++i]);
+    } else if (arg === '--policy' && i + 1 < argv.length) {
+      opts.policyPath = argv[++i];
+    } else if (arg === '--install-hook') {
+      opts.installHook = true;
     } else if (arg === '--license' && i + 1 < argv.length) {
       opts.licenseKey = argv[++i];
     } else if (!opts.command && arg.charAt(0) !== '-') {
@@ -227,6 +235,74 @@ function runDemo() {
   return 0;
 }
 
+function applyRepoPolicy(opts) {
+  var candidate = opts.policyPath || path.join(process.cwd(), '.pasteshield.json');
+  if (!fs.existsSync(candidate)) return null;
+  var parsed = PasteShieldCore.parsePolicyConfig(fs.readFileSync(candidate, 'utf8'));
+  if (!parsed || !parsed.valid) return null;
+  if (typeof parsed.redactEmails === 'boolean' && opts.redactEmails !== false) {
+    opts.redactEmails = parsed.redactEmails;
+  }
+  if (typeof parsed.redactInternalIps === 'boolean' && opts.redactInternalIps !== false) {
+    opts.redactInternalIps = parsed.redactInternalIps;
+  }
+  for (var i = 0; i < parsed.companyDomains.length; i++) {
+    if (opts.companyDomains.indexOf(parsed.companyDomains[i]) === -1) {
+      opts.companyDomains.push(parsed.companyDomains[i]);
+    }
+  }
+  for (var j = 0; j < parsed.customPatterns.length; j++) {
+    opts.customPatterns.push(parsed.customPatterns[j]);
+  }
+  return parsed;
+}
+
+function runInitPolicy(opts) {
+  var target = opts.policyPath || path.join(process.cwd(), '.pasteshield.json');
+  if (!fs.existsSync(target)) {
+    var policyObj = {
+      "$comment": "PasteShield Team Redaction & Pre-Commit Policy — safe to commit to Git",
+      "teamName": "Engineering",
+      "redactEmails": true,
+      "redactInternalIps": true,
+      "blockPreCommitOnSecret": true,
+      "companyDomains": ["internal.company.example"],
+      "customPatterns": [
+        { "name": "INTERNAL_TICKET_TOKEN", "pattern": "SEC-[A-Z0-9]{12,}", "flags": "g" }
+      ]
+    };
+    fs.writeFileSync(target, JSON.stringify(policyObj, null, 2) + '\n', 'utf8');
+    process.stdout.write('[PasteShield] Created team policy: ' + target + '\n');
+  } else {
+    process.stdout.write('[PasteShield] Policy already exists: ' + target + '\n');
+  }
+
+  if (opts.installHook) {
+    var hookDir = path.join(process.cwd(), '.git', 'hooks');
+    if (fs.existsSync(hookDir)) {
+      var hookFile = path.join(hookDir, 'pre-commit');
+      var script = '#!/bin/sh\n# PasteShield zero-cloud staged secret gate\nnpx --yes github:963239327/pasteshield-secret-sanitizer pre-commit\n';
+      fs.writeFileSync(hookFile, script, { mode: 0o755 });
+      process.stdout.write('[PasteShield] Installed Git pre-commit secret gate: ' + hookFile + '\n');
+    }
+  }
+  return 0;
+}
+
+async function runPreCommit(opts) {
+  var staged = '';
+  try {
+    staged = childProcess.execSync('git --no-pager diff --cached', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  } catch (_e) {
+    return 0;
+  }
+  if (!staged || !staged.trim()) return 0;
+  opts.gitDiff = true;
+  opts._stagedOverride = staged;
+  var rc = await runScan(opts);
+  return rc !== 0 ? 1 : 0;
+}
+
 async function prepareVault(opts) {
   var vault = PasteShieldCore.createVault();
   if (opts && opts.licenseKey && String(opts.licenseKey).trim()) {
@@ -312,8 +388,10 @@ function runRestore(opts) {
 async function runScan(opts) {
   var targets = [];
   if (opts.gitDiff) {
-    var diffOut = childProcess.execSync('git --no-pager diff HEAD', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
-    targets.push({ path: 'git-diff-HEAD', content: diffOut });
+    var diffOut = typeof opts._stagedOverride === 'string'
+      ? opts._stagedOverride
+      : childProcess.execSync('git --no-pager diff HEAD', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    targets.push({ path: opts._stagedOverride ? 'git-diff-staged' : 'git-diff-HEAD', content: diffOut });
   } else {
     var roots = opts.positionals.length > 0 ? opts.positionals : ['.'];
     var filePaths = [];
@@ -456,6 +534,7 @@ async function main() {
     printHelp();
     process.exit(0);
   }
+  applyRepoPolicy(opts);
 
   var code = 0;
   if (opts.command === 'mcp') {
@@ -463,6 +542,10 @@ async function main() {
     return;
   } else if (opts.command === 'demo') {
     code = runDemo();
+  } else if (opts.command === 'init-policy') {
+    code = runInitPolicy(opts);
+  } else if (opts.command === 'pre-commit') {
+    code = await runPreCommit(opts);
   } else if (opts.command === 'sanitize') {
     code = await runSanitize(opts);
   } else if (opts.command === 'restore') {

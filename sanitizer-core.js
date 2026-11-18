@@ -1,5 +1,5 @@
 /**
- * PasteShield Core — Reversible AI Prompt Secret Sanitizer & Offline License Engine
+ * PasteShield Core — Reversible AI Prompt Secret Sanitizer & Local Redaction Engine
  * Zero-dependency universal module compatible with:
  *   - VS Code / Cursor Node.js Extension Host (CommonJS)
  *   - macOS JavaScriptCore (`jsc`) CLI unit tests
@@ -710,17 +710,58 @@
     return 'text';
   }
 
+  SessionVault.prototype.getMaskedPreview = function (token) {
+    if (!token || !Object.prototype.hasOwnProperty.call(this.tokenToSecret, token)) {
+      return null;
+    }
+    var raw = this.tokenToSecret[token];
+    var meta = this.tokenMeta && this.tokenMeta[token] ? this.tokenMeta[token] : {};
+    return {
+      token: token,
+      category: meta.category || token.replace(/^<|_[0-9]+>$/g, ''),
+      maskedValue: maskSecretPreview(raw)
+    };
+  };
+
+  function parsePolicyConfig(rawPolicy) {
+    var obj = rawPolicy;
+    if (typeof rawPolicy === 'string') {
+      try {
+        obj = JSON.parse(rawPolicy);
+      } catch (_e) {
+        return { valid: false, companyDomains: [], customPatterns: [], redactEmails: undefined, redactInternalIps: undefined };
+      }
+    }
+    if (!obj || typeof obj !== 'object') {
+      return { valid: false, companyDomains: [], customPatterns: [], redactEmails: undefined, redactInternalIps: undefined };
+    }
+    var domains = Array.isArray(obj.companyDomains)
+      ? obj.companyDomains.map(function (d) { return String(d || '').trim(); }).filter(Boolean)
+      : [];
+    var patterns = Array.isArray(obj.customPatterns) ? obj.customPatterns.slice() : [];
+    return {
+      valid: true,
+      teamName: obj.teamName ? String(obj.teamName) : '',
+      redactEmails: typeof obj.redactEmails === 'boolean' ? obj.redactEmails : undefined,
+      redactInternalIps: typeof obj.redactInternalIps === 'boolean' ? obj.redactInternalIps : undefined,
+      blockPreCommitOnSecret: obj.blockPreCommitOnSecret !== false,
+      companyDomains: domains,
+      customPatterns: patterns
+    };
+  }
+
   function createVault(initialLicenseKey) {
     return new SessionVault(initialLicenseKey);
   }
 
   var PasteShieldCore = {
-    VERSION: '1.1.1',
+    VERSION: '1.2.0',
     ALLOWED_PREFIXES: ALLOWED_PREFIXES,
     CATEGORY_SEVERITY: CATEGORY_SEVERITY,
     normalizeLicenseKey: normalizeLicenseKey,
     verifyLicenseKey: verifyLicenseKey,
     maskSecretPreview: maskSecretPreview,
+    parsePolicyConfig: parsePolicyConfig,
     SessionVault: SessionVault,
     createVault: createVault
   };

@@ -1,16 +1,17 @@
+<!-- mcp-name: io.github.963239327/pasteshield-secret-sanitizer -->
 <div align="center">
 
 <img src="./assets/icon.png" alt="PasteShield Logo" width="88" />
 
 # PasteShield — Reversible AI Prompt & Clipboard Secret Sanitizer
 
-**Redact API keys, `.env` secrets, JWTs, database URIs, cloud connection strings & internal IPs before prompting ChatGPT, Claude, Cursor, or Copilot — and restore real credentials in 1 click.**
+**Redact API keys, `.env` secrets, JWTs, database URIs, cloud connection strings & internal IPs before prompting ChatGPT, Claude, Cursor, or Copilot — and auto-unmask AI code replies in 1 hotkey (`Cmd+Alt+V`).**
 
-[![Install on VS Code Marketplace](https://img.shields.io/badge/VS_Code_Marketplace-v1.1.1_Live-007ACC?style=for-the-badge&logo=visualstudiocode&logoColor=white)](https://marketplace.visualstudio.com/items?itemName=craftleaf-studio.pasteshield-ai-secret-sanitizer)
-[![Install on Open VSX (Cursor / Windsurf / VSCodium)](https://img.shields.io/badge/Open_VSX_Verified-v1.1.1_Live-a60ee5?style=for-the-badge&logo=eclipseide&logoColor=white)](https://open-vsx.org/extension/craftleaf-studio/pasteshield-ai-secret-sanitizer)
-[![Download Hardened VSIX v1.1.1](https://img.shields.io/badge/GitHub_Release-Download_v1.1.1_.vsix-10b981?style=for-the-badge&logo=github&logoColor=white)](https://github.com/963239327/pasteshield-secret-sanitizer/releases/latest/download/pasteshield-ai-secret-sanitizer-1.1.1.vsix)
+[![Install on VS Code Marketplace](https://img.shields.io/badge/VS_Code_Marketplace-v1.2.0_Live-007ACC?style=for-the-badge&logo=visualstudiocode&logoColor=white)](https://marketplace.visualstudio.com/items?itemName=craftleaf-studio.pasteshield-ai-secret-sanitizer)
+[![Install on Open VSX (Cursor / Windsurf / VSCodium)](https://img.shields.io/badge/Open_VSX_Verified-v1.2.0_Live-a60ee5?style=for-the-badge&logo=eclipseide&logoColor=white)](https://open-vsx.org/extension/craftleaf-studio/pasteshield-ai-secret-sanitizer)
+[![Download Hardened VSIX v1.2.0](https://img.shields.io/badge/GitHub_Release-Download_v1.2.0_.vsix-10b981?style=for-the-badge&logo=github&logoColor=white)](https://github.com/963239327/pasteshield-secret-sanitizer/releases/latest/download/pasteshield-ai-secret-sanitizer-1.2.0.vsix)
 [![Live Browser Playground](https://img.shields.io/badge/Try_Live_Playground-100%25_In_Browser-06b6d4?style=for-the-badge&logo=googlechrome&logoColor=white)](https://963239327.github.io/craftleaf-studio/extensions/pasteshield/)
-[![Unlock PasteShield Pro](https://img.shields.io/badge/PasteShield_Pro-%249_Lifetime_License-f59e0b?style=for-the-badge)](https://stardustdemo.gumroad.com/l/pasteshield-pro)
+[![Unlock PasteShield Pro / Team](https://img.shields.io/badge/PasteShield_Pro_%2F_Team-%249_Solo_%7C_%2429_Team-f59e0b?style=for-the-badge)](https://stardustdemo.gumroad.com/l/pasteshield-pro)
 
 ![Zero Dependencies](https://img.shields.io/badge/dependencies-0-success)
 ![100% Local Vault](https://img.shields.io/badge/secret_vault-100%25_local_RAM-blue)
@@ -91,12 +92,15 @@ Run PasteShield as a **zero-dependency local stdio MCP Server** (`sanitize_snipp
 Also installable in 1 click from the [**Official Visual Studio Marketplace**](https://marketplace.visualstudio.com/items?itemName=craftleaf-studio.pasteshield-ai-secret-sanitizer) and [**Verified Open VSX Registry (Cursor / Windsurf / VSCodium)**](https://open-vsx.org/extension/craftleaf-studio/pasteshield-ai-secret-sanitizer).
 
 ### Option A: VS Code, Cursor, Windsurf & VSCodium Extension
-1. Install directly from [**VS Code Marketplace**](https://marketplace.visualstudio.com/items?itemName=craftleaf-studio.pasteshield-ai-secret-sanitizer) or [**Open VSX Registry (`verified` publisher `craftleaf-studio`)**](https://open-vsx.org/extension/craftleaf-studio/pasteshield-ai-secret-sanitizer), or download **[`pasteshield-ai-secret-sanitizer-1.1.1.vsix`](https://github.com/963239327/pasteshield-secret-sanitizer/releases/latest/download/pasteshield-ai-secret-sanitizer-1.1.1.vsix)** from [GitHub Releases](https://github.com/963239327/pasteshield-secret-sanitizer/releases/latest).
-2. In VS Code or Cursor, open the Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+P`) -> **`Extensions: Install from VSIX...`** -> select the `.vsix` file (or run `code --install-extension pasteshield-ai-secret-sanitizer-1.1.1.vsix`).
+1. Install directly from [**VS Code Marketplace**](https://marketplace.visualstudio.com/items?itemName=craftleaf-studio.pasteshield-ai-secret-sanitizer) or [**Open VSX Registry (`verified` publisher `craftleaf-studio`)**](https://open-vsx.org/extension/craftleaf-studio/pasteshield-ai-secret-sanitizer), or download **[`pasteshield-ai-secret-sanitizer-1.2.0.vsix`](https://github.com/963239327/pasteshield-secret-sanitizer/releases/latest/download/pasteshield-ai-secret-sanitizer-1.2.0.vsix)** from [GitHub Releases](https://github.com/963239327/pasteshield-secret-sanitizer/releases/latest).
+2. In VS Code or Cursor, open the Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+P`) -> **`Extensions: Install from VSIX...`** -> select the `.vsix` file (or run `code --install-extension pasteshield-ai-secret-sanitizer-1.2.0.vsix`).
 3. Highlight any code/log and press:
    - **`Cmd+Alt+C`** (`Ctrl+Alt+C`) — **Copy Sanitized Selection for AI**
+   - **`Cmd+Alt+V`** (`Ctrl+Alt+V`) — **Paste & Auto-Unmask AI Reply at Cursor**
    - **`Cmd+Alt+R`** (`Ctrl+Alt+R`) — **Restore Original Values from Clipboard / Selection**
    - **`Cmd+Alt+S`** (`Ctrl+Alt+S`) — **Sanitize Current Editor In-Place**
+   - **Hover any `<CATEGORY_N>` token** — View safe masked preview (`sk-p••••abcd`) from local RAM
+   - **Team `.pasteshield.json` + Pre-Commit Gate** — Run `pasteshield init-policy --install-hook` to enforce repo-level redaction rules across your team (`$29` 5-Seat Team Policy Pack / `$9` Solo Pro)
 
 ### Option B: Instant Zero-Install Browser Playground
 Need to scrub a crash log or `.env` snippet right now without installing anything?
