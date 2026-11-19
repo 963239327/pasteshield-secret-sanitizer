@@ -13,6 +13,8 @@
 [![Live Browser Playground](https://img.shields.io/badge/Try_Live_Playground-100%25_In_Browser-06b6d4?style=for-the-badge&logo=googlechrome&logoColor=white)](https://963239327.github.io/craftleaf-studio/extensions/pasteshield/)
 [![Unlock PasteShield Pro / Team](https://img.shields.io/badge/PasteShield_Pro_%2F_Team-%249_Solo_%7C_%2429_Team-f59e0b?style=for-the-badge)](https://stardustdemo.gumroad.com/l/pasteshield-pro)
 
+[![Official MCP Registry](https://img.shields.io/badge/MCP_Registry-v1.2.0_Active-8b5cf6)](https://registry.modelcontextprotocol.io/v0.1/servers?search=pasteshield)
+[![Glama MCP Score](https://glama.ai/mcp/servers/963239327/pasteshield-secret-sanitizer/badges/score.svg)](https://glama.ai/mcp/servers/963239327/pasteshield-secret-sanitizer)
 ![Zero Dependencies](https://img.shields.io/badge/dependencies-0-success)
 ![100% Local Vault](https://img.shields.io/badge/secret_vault-100%25_local_RAM-blue)
 ![Node & Bun Ready](https://img.shields.io/badge/CLI_%26_MCP-Node.js_%26_Bun-339933)
